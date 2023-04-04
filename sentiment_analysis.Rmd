@@ -26,44 +26,121 @@ library(janeaustenr)
 library(stringr)
 ```
 
-## Including Plots
+## Title
 
-You can also embed plots, for example:
-
-```{r example}
-text <- c("Because I could not stop for Death -",
-          "He kindly stopped for me -",
-          "The Carriage held but just Ourselves -",
-          "and Immortality")
-
-text_df <- tibble(line = 1:4, text = text)
-
-text_df |> 
-  unnest_tokens(word, text)
-```
-
-```{r example-2}
-original_books <- austen_books() |> 
+```{r example-1}
+tidy_books <- 
+  austen_books() |> 
   group_by(book) |> 
   mutate(linenumber = row_number(),
          chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = TRUE)))) |> 
-  ungroup()
-
-tidy_books <- original_books |> 
+  ungroup() |> 
   unnest_tokens(word, text)
 
-# remove stopwords
-tidy_books <- tidy_books %>%
-  anti_join(stop_words)
-
-tidy_books %>%
-  count(word, sort = TRUE) 
+tidy_books
 ```
 
+## Title
 
+```{r example-2, message=FALSE, warning=FALSE}
+jane_austen_sentiment <- 
+  tidy_books |>
+  inner_join(get_sentiments("bing")) |>
+  count(book, index = linenumber %/% 80, sentiment) |>
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
+  mutate(sentiment = positive - negative)
 
+knitr::kable(head(jane_austen_sentiment))
+```
 
+## Title
 
+```{r example-3}
+jane_austen_sentiment |> 
+  ggplot(aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+## Title
+
+```{r example-4, message=FALSE, warning=FALSE}
+bing_word_counts <- tidy_books |>
+  inner_join(get_sentiments("bing")) |>
+  count(word, sentiment, sort = TRUE) |>
+  ungroup()
+
+knitr::kable(head(bing_word_counts))
+```
+
+## Title
+
+```{r example}
+bing_word_counts |>
+  group_by(sentiment) |>
+  slice_max(n, n = 10) |> 
+  ungroup() |>
+  mutate(word = reorder(word, n)) |>
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+## Title
+
+```{r example, warning=FALSE, message=FALSE}
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+wordcounts <- tidy_books %>%
+  group_by(book, chapter) %>%
+  summarize(words = n())
+
+ratio_tbl <-
+  tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+
+knitr::kable(ratio_tbl)
+```
+
+## Title
+
+```{r example}
+```
+
+## Title
+
+```{r example}
+```
+
+## Title
+
+```{r example}
+```
+
+## Title
+
+```{r example}
+```
+
+## Title
+
+```{r example}
+```
+
+## Title
+
+```{r example}
+```
 
 
 
