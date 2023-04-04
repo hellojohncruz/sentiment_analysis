@@ -1,7 +1,7 @@
 ---
-title: "Sentiment Analysis"
+title: "Text Mining and Sentiment Analysis"
 author: "John Cruz"
-date: "2023-04-03"
+date: "2023-04-01"
 output: html_document
 ---
 
@@ -11,22 +11,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-In Text Mining with R, Chapter 2 looks at Sentiment Analysis.  In this assignment, you should start by getting the primary example code from chapter 2 working in an R Markdown document.  You should provide a citation to this base code.  You’re then asked to extend the code in two ways:
-Work with a different corpus of your choosing, and
-Incorporate at least one additional sentiment lexicon (possibly from another R package that you’ve found through research).
+In Text Mining with R, [Chapter 2](https://www.tidytextmining.com/sentiment.html) looks at sentiment analysis. The authors provides an example using the text of Jane Austen’s six completed, published novels from the *janeaustenr* library. All the code is originally credited to the authors, unless otherwise noted.
 
-https://www.tidytextmining.com/sentiment.html
+---
 
 ## Required Libraries
 
-```{r library}
+```{r library, message=FALSE}
 library(tidyverse)
 library(tidytext)
 library(janeaustenr)
 library(stringr)
+library(jsonlite)
+library(glue)
+library(lubridate)
 ```
 
-## Title
+---
+
+## Tidy Up Jane Austen's Work
+
+The authors take the text of the novels and converts the text to the tidy format using *unnest_tokens()*. They also create other columns to keep track of which line and chapter of the book each word comes from. 
 
 ```{r example-1}
 tidy_books <- 
@@ -37,10 +42,12 @@ tidy_books <-
   ungroup() |> 
   unnest_tokens(word, text)
 
-tidy_books
+knitr::kable(head(tidy_books), caption = "Brief View of Tokenized Words")
 ```
 
-## Title
+## Determining Overall Sentiment
+
+Next, count up how many positive and negative words there are in defined sections of each book, along with a net sentiment score. They define an index here to keep track of where they are in the narrative. The index counts up sections of 80 lines of text.
 
 ```{r example-2, message=FALSE, warning=FALSE}
 jane_austen_sentiment <- 
@@ -50,10 +57,12 @@ jane_austen_sentiment <-
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
   mutate(sentiment = positive - negative)
 
-knitr::kable(head(jane_austen_sentiment))
+knitr::kable(head(jane_austen_sentiment), caption = "Brief View of Sentiment Scores by Indexing")
 ```
 
-## Title
+## Visualizing Sentiment throughout each Novel
+
+Finally, plot how each novel changes toward more positive or negative sentiment over the trajectory of the story.
 
 ```{r example-3}
 jane_austen_sentiment |> 
@@ -62,64 +71,68 @@ jane_austen_sentiment |>
   facet_wrap(~book, ncol = 2, scales = "free_x")
 ```
 
-## Title
+## Which Chapter has the Most Negative Words?
 
-```{r example-4, message=FALSE, warning=FALSE}
-bing_word_counts <- tidy_books |>
-  inner_join(get_sentiments("bing")) |>
-  count(word, sentiment, sort = TRUE) |>
-  ungroup()
+The authors also provide a proportion table to determine which chapter has the most negative words in each book. 
 
-knitr::kable(head(bing_word_counts))
-```
-
-## Title
-
-```{r example}
-bing_word_counts |>
-  group_by(sentiment) |>
-  slice_max(n, n = 10) |> 
-  ungroup() |>
-  mutate(word = reorder(word, n)) |>
-  ggplot(aes(n, word, fill = sentiment)) +
-  geom_col(show.legend = FALSE) +
-  facet_wrap(~sentiment, scales = "free_y") +
-  labs(x = "Contribution to sentiment",
-       y = NULL)
-```
-
-## Title
-
-```{r example, warning=FALSE, message=FALSE}
-bingnegative <- get_sentiments("bing") %>% 
+```{r example-4, warning=FALSE, message=FALSE}
+bingnegative <- 
+  get_sentiments("bing") |> 
   filter(sentiment == "negative")
 
-wordcounts <- tidy_books %>%
-  group_by(book, chapter) %>%
+wordcounts <- tidy_books |>
+  group_by(book, chapter) |>
   summarize(words = n())
 
 ratio_tbl <-
-  tidy_books %>%
-  semi_join(bingnegative) %>%
-  group_by(book, chapter) %>%
-  summarize(negativewords = n()) %>%
-  left_join(wordcounts, by = c("book", "chapter")) %>%
-  mutate(ratio = negativewords/words) %>%
-  filter(chapter != 0) %>%
-  slice_max(ratio, n = 1) %>% 
+  tidy_books |>
+  semi_join(bingnegative) |>
+  group_by(book, chapter) |>
+  summarize(negativewords = n()) |>
+  left_join(wordcounts, by = c("book", "chapter")) |>
+  mutate(ratio = negativewords/words) |>
+  filter(chapter != 0) |>
+  slice_max(ratio, n = 1) |> 
   ungroup()
 
 knitr::kable(ratio_tbl)
 ```
 
-## Title
+---
+
+**Note:** All work from this point forward has been performed by me. 
+
+## Corpus: NY Times Articles
+
+March 2023
+
+## Connect to NY Times API
 
 ```{r example}
+nyt_key <- rstudioapi::askForPassword('Enter NY Times API Key')
+
+api_cnxn <- 
+  fromJSON(glue("https://api.nytimes.com/svc/archive/v1/2023/3.json?api-key={nyt_key}"), flatten = TRUE)
+
+ny_times <- 
+    as.data.frame(api_cnxn) |> 
+    janitor::clean_names()
+
+write_csv(ny_times, 'ny_times.csv')
 ```
 
-## Title
+## Tidy Up Article Data
 
 ```{r example}
+lead_paragraph <-
+  ny_times |> 
+  select(response_docs_pub_date, response_docs_lead_paragraph, response_docs_section_name) |> 
+  mutate(response_docs_pub_date = str_extract(response_docs_pub_date, "[:graph:]*(?=\\+)")) |> 
+  rename(pub_date = response_docs_pub_date, lead_paragraph = response_docs_lead_paragraph, section = response_docs_section_name)
+
+lead_paragraph$pub_date <- 
+  lead_paragraph$pub_date |> 
+  ymd_hms()
 ```
 
 ## Title
