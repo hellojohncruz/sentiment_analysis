@@ -11,17 +11,62 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
+In Text Mining with R, Chapter 2 looks at Sentiment Analysis.  In this assignment, you should start by getting the primary example code from chapter 2 working in an R Markdown document.  You should provide a citation to this base code.  You’re then asked to extend the code in two ways:
+Work with a different corpus of your choosing, and
+Incorporate at least one additional sentiment lexicon (possibly from another R package that you’ve found through research).
+
+https://www.tidytextmining.com/sentiment.html
+
 ## Required Libraries
 
 ```{r library}
 library(tidyverse)
+library(tidytext)
+library(janeaustenr)
+library(stringr)
 ```
 
 ## Including Plots
 
 You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r example}
+text <- c("Because I could not stop for Death -",
+          "He kindly stopped for me -",
+          "The Carriage held but just Ourselves -",
+          "and Immortality")
+
+text_df <- tibble(line = 1:4, text = text)
+
+text_df |> 
+  unnest_tokens(word, text)
 ```
+
+```{r example-2}
+original_books <- austen_books() |> 
+  group_by(book) |> 
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = TRUE)))) |> 
+  ungroup()
+
+tidy_books <- original_books |> 
+  unnest_tokens(word, text)
+
+# remove stopwords
+tidy_books <- tidy_books %>%
+  anti_join(stop_words)
+
+tidy_books %>%
+  count(word, sort = TRUE) 
+```
+
+
+
+
+
+
+
+
+
+
 
