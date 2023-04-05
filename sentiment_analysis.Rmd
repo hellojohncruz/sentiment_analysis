@@ -109,10 +109,8 @@ March 2023
 ## Connect to NY Times API
 
 ```{r example}
-nyt_key <- rstudioapi::askForPassword('Enter NY Times API Key')
-
 api_cnxn <- 
-  fromJSON(glue("https://api.nytimes.com/svc/archive/v1/2023/3.json?api-key={nyt_key}"), flatten = TRUE)
+  fromJSON(glue("https://api.nytimes.com/svc/archive/v1/2023/3.json?api-key={rstudioapi::askForPassword('Enter NY Times API Key')}"), flatten = TRUE)
 
 ny_times <- 
     as.data.frame(api_cnxn) |> 
@@ -124,20 +122,56 @@ write_csv(ny_times, 'ny_times.csv')
 ## Tidy Up Article Data
 
 ```{r example}
-lead_paragraph <-
+section_df <-
   ny_times |> 
-  select(response_docs_pub_date, response_docs_lead_paragraph, response_docs_section_name) |> 
+  select(response_docs_pub_date, response_docs_section_name, response_docs_lead_paragraph) |> 
   mutate(response_docs_pub_date = str_extract(response_docs_pub_date, "[:graph:]*(?=\\+)")) |> 
   rename(pub_date = response_docs_pub_date, lead_paragraph = response_docs_lead_paragraph, section = response_docs_section_name)
 
-lead_paragraph$pub_date <- 
-  lead_paragraph$pub_date |> 
+section_df$pub_date <- 
+  section_df$pub_date |> 
   ymd_hms()
 ```
 
 ## Title
 
 ```{r example}
+tokenize_df <-
+  section_df |> 
+  unnest_tokens(word, lead_paragraph)
+
+knitr::kable(head(tokenize_df))
+```
+
+## Title
+
+```{r example, message=FALSE}
+sentiment_df <- 
+  tokenize_df |>
+  inner_join(get_sentiments("bing")) |>
+  count(section, sentiment) |>
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
+  mutate(sentiment = positive - negative)
+
+knitr::kable(head(sentiment_df), caption = "Rename")
+```
+
+## Title
+
+```{r example}
+```
+
+## Package Lexicon
+hash_sentiment_senticnet
+
+Description
+A data.table dataset containing an augmented version of Cambria, Poria, Bajpai,& Schuller’s
+(2016) positive/negative word list as sentiment lookup values.
+
+https://cran.r-project.org/web/packages/lexicon/lexicon.pdf
+
+```{r example}
+
 ```
 
 ## Title
