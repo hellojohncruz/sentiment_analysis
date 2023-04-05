@@ -151,9 +151,12 @@ sentiment_df <-
   inner_join(get_sentiments("bing")) |>
   count(section, sentiment) |>
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
-  mutate(sentiment = positive - negative)
+  mutate(total_words = negative + positive, 
+         ovr_sentiment = positive - negative, 
+        pct = round(ovr_sentiment/total_words *100, 2)) |> 
+  arrange(desc(total_words))
 
-knitr::kable(head(sentiment_df), caption = "Rename")
+knitr::kable(sentiment_df, caption = "Rename")
 ```
 
 ## Title
