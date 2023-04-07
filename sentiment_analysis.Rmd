@@ -3,6 +3,7 @@ title: "Text Mining and Sentiment Analysis"
 author: "John Cruz"
 date: "2023-04-01"
 output: html_document
+urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
@@ -25,6 +26,7 @@ library(stringr)
 library(jsonlite)
 library(glue)
 library(lubridate)
+library(ggrepel)
 ```
 
 ---
@@ -121,6 +123,8 @@ write_csv(ny_times, 'ny_times.csv')
 
 ## Tidy Up Article Data
 
+Clean up column formatting for published dates.
+
 ```{r update-columns}
 section_df <-
   ny_times |> 
@@ -131,11 +135,15 @@ section_df <-
 section_df$pub_date <- 
   section_df$pub_date |> 
   ymd_hms()
+
+section_df$hour <- 
+  section_df$pub_date |> 
+  hour()
 ```
 
-## Tokenize 
+## Tokenize Sections
 
-```{r example}
+```{r tokenize}
 tokenize_df <-
   section_df |> 
   unnest_tokens(word, lead_paragraph)
@@ -143,9 +151,11 @@ tokenize_df <-
 knitr::kable(head(tokenize_df))
 ```
 
-## Title
+## Categorize Sentiments between Sections
 
-```{r example, message=FALSE}
+Here, we can see that the most negative overall sentiment is the U.S. section at 71%. The most positive overall sentiment is Arts at 22%. 
+
+```{r grouped-sentiments, message=FALSE, warning=FALSE}
 sentiment_df <- 
   tokenize_df |>
   inner_join(get_sentiments("bing")) |>
@@ -155,30 +165,54 @@ sentiment_df <-
          ovr_sentiment = positive - negative, 
         pct = round(ovr_sentiment/total_words *100, 2))
 
-knitr::kable(sentiment_df, caption = "Rename")
+knitr::kable(sentiment_df, caption = "Overall Sentiment based on Section")
+
+sentiment_df |> 
+  ggplot(aes(x = negative, y = positive, label = section)) +
+  geom_point() +
+  geom_label_repel(box.padding = 0.35) +
+  xlim(0, 3000) +
+  ylim(0, 3000) 
+```
+
+## Categorize Sentiments between Time of Day
+
+When categorizing based on time of day, 0600 hour has the most positive leading paragraph sentiment at 31%, while at 1200 hour, it has the largest difference in negative sentiment at 88%. 
+
+```{r grouped-sentiments-2, message=FALSE}
+pub_date_df <- 
+  tokenize_df |>
+  inner_join(get_sentiments("bing")) |>
+  group_by() |> 
+  count(hour, sentiment) |>
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
+  mutate(total_words = negative + positive, 
+         ovr_sentiment = positive - negative, 
+        pct = round(ovr_sentiment/total_words *100, 2))
+
+knitr::kable(pub_date_df, caption = "Overall Sentiment based on Hour")
+
+pub_date_df |> 
+  ggplot(aes(x = hour, y = pct)) +
+  geom_bar(stat = 'identity')
+```
+
+## Lexicon Library
+
+Researching for other types of lexicon libraries R has to offer, I came across the **lexicon** package. Here it contains many different methods, one of them which is the *hash_sentiment_senticnet()* function. It is a data.table dataset containing an augmented version of Cambria, Poria, Bajpai,& Schuller's (2016) positive/negative word list as sentiment lookup values. Further documentation can be found [here](https://cran.r-project.org/web/packages/lexicon/lexicon.pdf). 
+
+```{r import-lexicon, message=FALSE}
+library(lexicon)
+
+knitr::kable(head(hash_sentiment_senticnet), caption = 'Glance of Lookup Values')
 ```
 
 ## Title
 
-```{r example}
-```
-
-## Package Lexicon
-hash_sentiment_senticnet
-
-Description
-A data.table dataset containing an augmented version of Cambria, Poria, Bajpai,& Schuller’s
-(2016) positive/negative word list as sentiment lookup values.
-
-https://cran.r-project.org/web/packages/lexicon/lexicon.pdf
-
-```{r example}
-
-```
-
-## Title
-
-```{r example}
+```{r lexicon-1}
+senticnet_df <-
+  hash_sentiment_senticnet |> 
+  rename(word = x, value = y)
 ```
 
 ## Title
