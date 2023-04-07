@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-In Text Mining with R, [Chapter 2](https://www.tidytextmining.com/sentiment.html) looks at sentiment analysis. The authors provides an example using the text of Jane Austen’s six completed, published novels from the *janeaustenr* library. All the code is originally credited to the authors, unless otherwise noted.
+Text Mining with R, [Chapter 2](https://www.tidytextmining.com/sentiment.html), looks at sentiment analysis. The authors provide an example using the text of Jane Austen’s six completed, published novels from the *janeaustenr* library. All the code is originally credited to the authors, unless otherwise noted.
 
 ---
 
@@ -100,15 +100,15 @@ knitr::kable(ratio_tbl)
 
 ---
 
-**Note:** All work from this point forward has been performed by me. 
+**Note:** All work from this point forward has been created by me. 
 
 ## Corpus: NY Times Articles
 
-March 2023
+Lets look at the NY Times published articles in March 2023. However, I will primarily look at the lead paragraph of each article. The goal is to get an idea of what kind of sentiment is being used within the different sections of each paragraph they offer such as Arts, U.S. and Sports. I will also look into seeing if certain times of the day lends itself more to positive or negative sentiments. 
 
 ## Connect to NY Times API
 
-```{r example}
+```{r nyt-api}
 api_cnxn <- 
   fromJSON(glue("https://api.nytimes.com/svc/archive/v1/2023/3.json?api-key={rstudioapi::askForPassword('Enter NY Times API Key')}"), flatten = TRUE)
 
@@ -121,7 +121,7 @@ write_csv(ny_times, 'ny_times.csv')
 
 ## Tidy Up Article Data
 
-```{r example}
+```{r update-columns}
 section_df <-
   ny_times |> 
   select(response_docs_pub_date, response_docs_section_name, response_docs_lead_paragraph) |> 
@@ -133,7 +133,7 @@ section_df$pub_date <-
   ymd_hms()
 ```
 
-## Title
+## Tokenize 
 
 ```{r example}
 tokenize_df <-
@@ -153,8 +153,7 @@ sentiment_df <-
   pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |> 
   mutate(total_words = negative + positive, 
          ovr_sentiment = positive - negative, 
-        pct = round(ovr_sentiment/total_words *100, 2)) |> 
-  arrange(desc(total_words))
+        pct = round(ovr_sentiment/total_words *100, 2))
 
 knitr::kable(sentiment_df, caption = "Rename")
 ```
