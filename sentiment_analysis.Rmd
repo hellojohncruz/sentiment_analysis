@@ -2,7 +2,9 @@
 title: "Text Mining and Sentiment Analysis"
 author: "John Cruz"
 date: "2023-04-01"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 urlcolor: blue
 ---
 
@@ -207,26 +209,41 @@ library(lexicon)
 knitr::kable(head(hash_sentiment_senticnet), caption = 'Glance of Lookup Values')
 ```
 
-## Title
+## Calculate Sentiment based on New Sentiment Lexicon
+
+What we see is that the slope relationship between positive and negative words are much more favorable for positive words when comparing total word counts to each section. This is because I primitively categorized each word based on either being positive or negative without it's strength value accounted for. However, the U.S. section still shows as the leader for all sections with negative words overall.
 
 ```{r lexicon-1}
-senticnet_df <-
+lexicon_df <-
   hash_sentiment_senticnet |> 
   rename(word = x, value = y)
 ```
 
-## Title
+```{r lexicon-section, warning = FALSE, message=FALSE}
+lex_sentiment_df <- 
+  tokenize_df |>
+  inner_join(lexicon_df) 
 
-```{r example}
+lex_section_df <-  
+  lex_sentiment_df |> 
+  mutate(type = case_when(value < 0 ~ "negative",
+            value > 0 ~ "positive")) |> 
+  group_by(section, type) |> 
+  summarise(total_words = n()) |> 
+  pivot_wider(names_from = type, values_from = total_words) |> 
+  mutate(total_words = negative + positive)
+
+knitr::kable(lex_section_df, caption = "Overall Sentiment based on Section")
+
+lex_section_df |> 
+  ggplot(aes(x = negative, y = positive, label = section)) +
+  geom_point() +
+  geom_label_repel(box.padding = 0.35) +
+  xlim(0, 11000) +
+  ylim(0, 11000) 
 ```
 
-## Title
+## Conclusion
 
-```{r example}
-```
-
-
-
-
-
+Based on the lexicon sentiment package used, the simple values used can change drastically, however, overall the general tendacies are the same such that the U.S section within in the NY Times generally tends to have more ngative sentiment words being used. 
 
